@@ -137,18 +137,24 @@ def get_main_features_df(word_analysis):
         ud = word_analysis['ud'].split('+')
         lemmas = get_lemmas(word_analysis['lex'], tokens)
     
-    if len(catib6) < len(tokens):
-        print(tokens)
-        print(catib6)
-        catib6.append("NOM")
-        ud.append("NOUN")
-        return pd.DataFrame({'token': tokens, 'catib6': catib6, 'ud': ud, 'lemma': lemmas})
+    # Ensure all lists have the same length
+    max_length = max(len(tokens), len(catib6), len(ud), len(lemmas))
+    tokens = tokens + [''] * (max_length - len(tokens))
+    catib6 = catib6 + ['UNK'] * (max_length - len(catib6))
+    ud = ud + ['UNK'] * (max_length - len(ud))
+    lemmas = lemmas + [''] * (max_length - len(lemmas))
+
     try:
         return pd.DataFrame({'token': tokens, 'catib6': catib6, 'ud': ud, 'lemma': lemmas})
-    except:
-        print('Discrepency in length of token, catib6, and/or ud list')
-        print(f'Lengths: token = {len(tokens)}, catib6 = {len(catib6)}, ud = {len(ud)}')
-        assert False
+    except Exception as e:
+        print('Error creating DataFrame:')
+        print(f'Lengths: token = {len(tokens)}, catib6 = {len(catib6)}, ud = {len(ud)}, lemma = {len(lemmas)}')
+        print(f'tokens: {tokens}')
+        print(f'catib6: {catib6}')
+        print(f'ud: {ud}')
+        print(f'lemmas: {lemmas}')
+        raise e
+    # This modification handles cases when the word has no assigned lemma/token or any of the pre-specified features
 
 def get_word_features_df(word_analysis, clitic_feats):
     """if a word is composed of multiple tokens, return them all.
