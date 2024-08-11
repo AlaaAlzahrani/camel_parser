@@ -3,7 +3,7 @@ get features based on a given criteria.
 
 If no criteria is given, return atbtok and catib6
 """
-
+import logging
 import re
 from typing import List
 import json
@@ -12,8 +12,13 @@ from camel_tools.utils.charmap import CharMapper
 from camel_tools.utils.transliterate import Transliterator
 import pandas as pd
 
+# log warrnings
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# constants
 FEATURES_LIST = ["pos", "prc3", "prc2", "prc1", "prc0", "enc0", "asp", "vox", "mod", "gen", "num", "stt", "cas", "per", "rat"]
 
+# functions
 def feats_dict_to_string(feats_dict):
     # prc3=na|prc2=na|prc1=na|prc0=na|per=na|asp=na|vox=na|mod=na|gen=na|num=na|stt=na|cas=na|enc0=na|rat=na
     feats_str = json.dumps(feats_dict)
@@ -27,6 +32,12 @@ def build_clitic_feats_dict(clitic_feat_list):
     final_clitic_feats['token_type'] = clitic_feat_list[0]['deciding_feat'].split(':')[0]
     return final_clitic_feats
 
+def get_default_clitic_feats(clitic_order):
+    default_feats = {feat: 'na' for feat in FEATURES_LIST}
+    default_feats['pos'] = 'unk'
+    default_feats[clitic_order] = 'unk'
+    return default_feats
+
 def get_clitic_feats(token, clitic_order, clitic_feats, stem_feats):
     mapper = CharMapper.builtin_mapper('ar2bw')
     transliterator = Transliterator(mapper)
@@ -38,17 +49,22 @@ def get_clitic_feats(token, clitic_order, clitic_feats, stem_feats):
         clitic_feat_list = filtered_clitics[filtered_clitics.deciding_feat == feat_check].to_dict('records')
         if clitic_feat_list:
             return build_clitic_feats_dict(clitic_feat_list)
-    assert False, f"clitic '{token}' does not exist in clitics list. Stem features: {stem_feats}"
+    
+    # rather than raising an assertion, log a warning and return default features
+    logging.warning(f"Unknown clitic '{token}' encountered. Stem features: {stem_feats}")
+    default_feats = get_default_clitic_feats(clitic_order)
+    default_feats['token_type'] = clitic_order
+    return default_feats
 
 def get_stem_feats(word_analysis):
     return {feat: word_analysis[feat] for feat in FEATURES_LIST}
 
 def get_clitic_order(token):
     if token.endswith('+'):
-        clitic_order = 'prc'
+        return 'prc'
     elif token.startswith('+'):
-        clitic_order = 'enc'
-    return clitic_order
+        return 'enc'
+    return 'unk'  # to handle cases when the token doesn't match expected patterns
 
 def is_clitic(token):
     return (token.startswith('+') or token.endswith('+')) and not re.match(r'^\++$', token)
